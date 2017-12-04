@@ -1,0 +1,120 @@
+/* CSCI 255 - Final Project: Wall Avoiding Robot
+ * Fall 2017
+ *
+ * Chris O'Neill, Kieth Bocian, Sam ????
+ *
+ * file: main.c
+ * */
+
+#include <msp430.h>
+
+//Function prototypes
+void backUp();
+void turnRight();
+void turnLeft();
+void reverse();
+void straight();
+void turnDelay();
+
+
+//main
+int main() {
+    WDTCTL = WDTPW | WDTHOLD;
+
+    P1REN |= 0x20; // Enable resister for pin 1.5
+    P1DIR &= ~0x20; // Have resister pull-down (active high)
+
+    P2DIR |= BIT1 | BIT4; // P2.1 and P2.4 for outputs to servo with PWM
+    P2SEL |= BIT1 | BIT4; // associate P2.1 and 2.4 with Timer_A1
+
+    P1DIR |= BIT6; // P1.6 - infrared LED output with PWM
+    P1SEL |= BIT6; // associate P1.6 Timer_A0
+
+    TA0CCR0 = 26; // Length of period for PWM for timer A0 (1MHz / 38000Hz)
+    TA0CCR1 = 13; // 50% duty cycle on infrared LED (P1.6)
+    TA0CCTL1 = OUTMOD_7; //Mode7 reset/set
+    TA0CTL = TASSEL_2 + MC_1; // Timer SMCLK Mode UP
+
+    TA1CCR0 = 20000; // Length of period for PWM for timer A1 (20000Hz / 1MHz -> .002 sec (2 msec))
+    TA1CCTL1 = OUTMOD_7; // Mode7 reset/set
+    TA1CCTL2 = OUTMOD_7; // Mode7 reset/set
+    TA1CTL = TASSEL_2 + MC_1; // Timer SMCLK Mode UP
+
+    while(1){
+        //If the sensor receives an infrared signal
+        if(!(0x20 & P1IN)){
+            backUp();
+            turnLeft();
+        }
+        //Else go straight
+        else{
+            straight();
+        }
+    }
+}
+
+//turnDelay function
+//Has the robot continue to turn for 60000 clock cycles
+void turnDelay() {
+    volatile unsigned int i;
+
+    for(i = 0; i < 60000; i++);
+}
+
+//Backup function
+//Has the robot go in reverse for 50000 clock cycles
+void backUp() {
+    volatile unsigned int i;
+
+    for(i = 0; i < 50000; i++) {
+            reverse();
+    }
+}
+
+//Straight function
+//Makes the wheels spin forward at the same speed
+void straight() {
+
+    //1640 - 360 = 1280
+    TA1CCR1 = 1280;
+
+    //1640 + 360 = 2000
+    TA1CCR2 = 2000;
+}
+
+//Reverse function
+//Makes the servo wheels spin in reverse at the same speed
+void reverse() {
+
+    //1640 + 360 = 2000
+    TA1CCR1 = 2000;
+
+    //1640 - 360 = 1280
+    TA1CCR2 = 1280;
+}
+
+
+//Turn right function
+//Makes the right wheel spin in reverse
+void turnRight() {
+    TA1CCR1 = 2000;
+
+    //spin right wheel in reverse
+    TA1CCR2 = 2000;
+
+    //Delay to turn right about 90 degrees
+    turnDelay();
+}
+
+//Turn left function
+//Makes the left wheel spin in reverse
+void turnLeft() {
+
+    //Make the left wheel spin in reverse
+    TA1CCR1 = 1280;
+    TA1CCR2 = 1280;
+
+    //Delay to turn left about 90 degrees
+    turnDelay();
+}
+
